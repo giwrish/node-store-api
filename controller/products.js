@@ -14,14 +14,21 @@ const getAllProductsStatic = async (req, res) => {
 
 const getAllProducts = async (req, res) => {
   console.log(req.query);
-  const { name, sort, fields, limit, page, numeric_filters } = req.query;
+  const {
+    name,
+    sort,
+    fields,
+    limit,
+    page,
+    numeric_filters: numericFilters
+  } = req.query;
   const queryFilter = {
     ...req.query
   };
   name && (queryFilter.name = { $regex: name, $options: "i" });
   console.log(queryFilter);
 
-  if (numeric_filters) {
+  if (numericFilters) {
     const operatorMap = {
       ">": "$gt",
       "<": "$lt",
@@ -29,10 +36,25 @@ const getAllProducts = async (req, res) => {
       ">=": "$gte",
       "<=": "$lte"
     };
+
+    const regex = /\b(<|>|>=|=|<=)\b/g;
+    let filters = numericFilters.replace(
+      regex,
+      (match) => `-${operatorMap[match]}-`
+    );
+    console.log(filters);
+
+    const options = ["price", "range"];
+
+    filters.split(",").forEach((item) => {
+      const [field, operator, value] = item.split("-");
+      if (options.includes(field)) {
+        queryFilter[field] = { [operator]: Number(value) };
+      }
+    });
   }
 
   let result = Product.find(queryFilter);
-  console.log(result);
   if (sort) {
     const sortList = sort.split(",").join(" ");
     console.log("sortList ", sortList);
